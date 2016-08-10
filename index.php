@@ -11,10 +11,19 @@ use HappySF as HappySF;
 
 // get config from yaml
 $config = SymfonyComponent\Yaml\Yaml::parse(file_get_contents(BASE_PATH . '/config.yaml'));
+
+// url container
+$url = new Happysf\URL($config['domain']);
+
+// crawler
 $client = new Goutte\Client();
-$html = $client->request('GET', 'http://happysf.net/zeroboard/zboard.php?id=reader');
+$html = $client->request('GET', $url->getBoardURL($config['board_id']));
 
 foreach($html->filter('tr[bgcolor=ffffff]') as $element) {
 	$article = new HappySF\Article(new SymfonyComponent\DomCrawler\Crawler($element));
+	$article->loadContent($url->getArticleURL($config['board_id'], $article->getArticleId()));
+
+	echo $article->getContent()->getContent();
+	exit;
 }
 // EOF

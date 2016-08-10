@@ -1,2 +1,2 @@
-base_url: http://happysf.net
-target_boards: [reader]
+domain: happysf.net
+board_id: reader
