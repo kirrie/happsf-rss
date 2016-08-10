@@ -1,0 +1,21 @@
+{
+    "name": "kirrie/happysf-rss",
+    "description": "happysf rss feed generator",
+    "type": "project",
+    "require": {
+        "symfony/dom-crawler": "^3.1",
+        "fabpot/goutte": "^3.1",
+        "symfony/yaml": "^3.1"
+    },
+	"autoload": {
+		"psr-4": {
+			"HappySF\\": "HappySF/"
+		}
+	},
+    "authors": [
+        {
+            "name": "kirrie",
+            "email": "kirrie@gmail.com"
+        }
+    ]
+}
