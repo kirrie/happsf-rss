@@ -9,82 +9,121 @@ use Symfony\Component\Yaml\Yaml;
 use Sunra\PhpSimple\HtmlDomParser;
 use GuzzleHttp as GuzzleHttp;
 use HappySF as HappySF;
-use Zend\Feed;
-use Zend\Cache;
+use Zend as Zend;
 
-// config
-$config = Yaml::parse(file_get_contents(BASE_PATH . '/config.yaml'));
+// response
+$response = new GuzzleHttp\Psr7\Response;
+$response = $response
+	->withStatus(200)
+	->withHeader('X-Cache', 'MISS from local')
+	->withBody(new GuzzleHttp\Psr7\Stream(fopen('php://memory', 'r+')));
+$body = $response
+	->getBody();
 
-// output function
-function output($rss, $callback = NULL) {
-	if(!headers_sent()) {
-		header('Content-type: application/rss+xml');
-	}
-	echo $rss;
+try {
+	// config
+	$config = Yaml::parse(file_get_contents(BASE_PATH . '/config.yaml'));
 
-	if(!is_null($callback) && is_callable($callback)) {
-		$callback();
-	}
-
-	exit;
-}
-
-// cache
-$cache_key = 'rss';
-$cache = Cache\StorageFactory::factory(array(
-	'adapter' => array(
-		'name' => 'filesystem',
-		'ttl' => $config['cache']['ttl'],
-		'cache_dir' => BASE_PATH . '/cache'
-	),
-	'plugins' => array(
-		'exception_handler' => array(
-			'throw_exceptions' => FALSE
+	// use cached data
+	$cache_key = 'rss';
+	$cache = Zend\Cache\StorageFactory::factory(array(
+		'adapter' => array(
+			'name' => 'filesystem',
+			'ttl' => $config['cache']['ttl'],
+			'cache_dir' => BASE_PATH . '/cache'
+		),
+		'plugins' => array(
+			'exception_handler' => array(
+				'throw_exceptions' => FALSE
+			)
 		)
-	)
-));
-$cache_result = $cache->getItem($cache_key, $cache_success);
-if($cache_success) {
-	output($cache_result);
-}
+	));
+	$cached_data = $cache->getItem($cache_key, $cache_hit);
+	if($cache_hit) {
+		$response = $response
+			->withHeader('Content-Type', 'application/rss+xml')
+			->withHeader('X-Cache', 'HIT from local');
+		$body
+			->write($cached_data);
+	}
 
-// http request
-$client = new GuzzleHttp\Client();
-$result = $client->request('GET', 'http://happysf.net/zeroboard/zboard.php?id=reader');
+	// http request
+	$client = new GuzzleHttp\Client();
+	$result = $client->request('GET', 'http://happysf.net/zeroboard/zboard1.php?id=reader');
 
-// abnormal response
-if($result->getStatusCode() !== 200) {
-	// TODO logging
-}
+	// rss feed channel
+	$feed = new Zend\Feed\Writer\Feed;
+	$feed
+		->setTitle($config['feed']['title'])
+		->setLink($config['feed']['homepage_url'])
+		->setDescription($config['feed']['description'])
+		->setFeedLink($config['feed']['feed_url'], $config['feed']['type'])
+		->setDateModified(time())
+		->addAuthor($config['feed']['author']);
 
-// rss feed channel
-$feed = new Feed\Writer\Feed;
-$feed
-	->setTitle($config['feed']['title'])
-	->setLink($config['feed']['homepage_url'])
-	->setDescription($config['feed']['description'])
-	->setFeedLink($config['feed']['feed_url'], $config['feed']['type'])
-	->setDateModified(time())
-	->addAuthor($config['feed']['author']);
+	$html = HtmlDomParser::str_get_html($result->getBody());
+	foreach($html->find('tr[bgcolor=ffffff]') as $element) {
+		$article = new HappySF\Article($element);
+		$feed->addEntry(
+			$feed->createEntry()
+				->setTitle($article->getTitle())
+				->setLink($article->getURL())
+				->addAuthor(array(
+					'name' => $article->getAuthor()
+				))
+				->setDateCreated($article->getDate())
+				->setDateModified($article->getDate())
+				->setContent($article->getContent())
+		);
+	}
 
-$html = HtmlDomParser::str_get_html($result->getBody());
-foreach($html->find('tr[bgcolor=ffffff]') as $element) {
-	$article = new HappySF\Article($element);
-	$feed->addEntry(
-		$feed->createEntry()
-			->setTitle($article->getTitle())
-			->setLink($article->getURL())
-			->addAuthor(array(
-				'name' => $article->getAuthor()
-			))
-			->setDateCreated($article->getDate())
-			->setDateModified($article->getDate())
-			->setContent($article->getContent())
-	);
-}
+	$rss = $feed->export($config['feed']['type']);
+	$response = $response
+		->withHeader('Content-Type', 'application/rss+xml');
+	$body
+		->write($rss);
 
-$rss = $feed->export($config['feed']['type']);
-output($rss, function() use($rss, $cache, $cache_key) {
+	// cache it
 	$cache->setItem($cache_key, $rss);
-});
+} catch(GuzzleHttp\Exception\ClientException $e) {
+	$response = $response
+		->withStatus($e->getResponse()->getStatusCode());
+	$body
+		->write($e->getMessage());
+}
+
+// flush
+$headers = $response->getHeaders();
+$body = $response->getBody();
+
+if(!headers_sent()) {
+	// header part
+	header(sprintf(
+		'HTTP/%s %s %s',
+		$response->getProtocolVersion(),
+		$response->getStatusCode(),
+		$response->getReasonPhrase()
+	));
+
+	foreach($headers as $header_name => $header_values) {
+		foreach($header_values as $header_value) {
+			header(sprintf('%s: %s', $header_name, $header_value), FALSE);
+		}
+	}
+}
+
+// body part
+if($body->getSize() !== 0) {
+	if($body->isSeekable()) {
+		$body->rewind();
+	}
+
+	while(!$body->eof()) {
+		echo $body->read(4096);
+
+		if(connection_status() != CONNECTION_NORMAL) {
+			break;
+		}
+	}
+}
 // EOF
