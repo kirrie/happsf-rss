@@ -5,25 +5,87 @@ define('BASE_PATH', dirname(__FILE__));
 // autoloader
 require_once BASE_PATH . '/vendor/autoload.php';
 
-use Symfony\Component as SymfonyComponent;
-use Goutte as Goutte;
+use Symfony\Component\Yaml\Yaml;
+use Sunra\PhpSimple\HtmlDomParser;
+use GuzzleHttp as GuzzleHttp;
 use HappySF as HappySF;
+use Zend\Feed;
+use Zend\Cache;
 
-// get config from yaml
-$config = SymfonyComponent\Yaml\Yaml::parse(file_get_contents(BASE_PATH . '/config.yaml'));
+// config
+$config = Yaml::parse(file_get_contents(BASE_PATH . '/config.yaml'));
 
-// url container
-$url = new Happysf\URL($config['domain']);
+// output function
+function output($rss, $callback = NULL) {
+	if(!headers_sent()) {
+		header('Content-type: application/rss+xml');
+	}
+	echo $rss;
 
-// crawler
-$client = new Goutte\Client();
-$html = $client->request('GET', $url->getBoardURL($config['board_id']));
+	if(!is_null($callback) && is_callable($callback)) {
+		$callback();
+	}
 
-foreach($html->filter('tr[bgcolor=ffffff]') as $element) {
-	$article = new HappySF\Article(new SymfonyComponent\DomCrawler\Crawler($element));
-	$article->loadContent($url->getArticleURL($config['board_id'], $article->getArticleId()));
-
-	echo $article->getContent()->getContent();
 	exit;
 }
+
+// cache
+$cache_key = 'rss';
+$cache = Cache\StorageFactory::factory(array(
+	'adapter' => array(
+		'name' => 'filesystem',
+		'ttl' => 3600 * 6
+	),
+	'plugins' => array(
+		'exception_handler' => array(
+			'throw_exceptions' => FALSE
+		)
+	)
+));
+$cache_result = $cache->getItem($cache_key, $cache_success);
+if($cache_success) {
+	output($cache_result);
+}
+
+// http request
+$client = new GuzzleHttp\Client();
+$result = $client->request('GET', 'http://happysf.net/zeroboard/zboard.php?id=reader');
+
+// abnormal response
+if($result->getStatusCode() !== 200) {
+	// TODO logging
+}
+
+// rss feed channel
+$feed = new Feed\Writer\Feed;
+$feed
+	->setTitle($config['feed']['title'])
+	->setLink($config['feed']['homepage_url'])
+	->setDescription($config['feed']['description'])
+	->setFeedLink($config['feed']['feed_url'], $config['feed']['type'])
+	->setDateModified(time())
+	->addAuthor($config['feed']['author']);
+
+$html = HtmlDomParser::str_get_html($result->getBody());
+foreach($html->find('tr[bgcolor=ffffff]') as $element) {
+	$article = new HappySF\Article($element);
+
+	$entry = $feed->createEntry();
+	$entry
+		->setTitle($article->getTitle())
+		->setLink($article->getURL())
+		->addAuthor(array(
+			'name' => $article->getAuthor()
+		))
+		->setDateCreated($article->getDate())
+		->setDateModified($article->getDate())
+		->setContent($article->getContent());
+
+	$feed->addEntry($entry);
+}
+
+$rss = $feed->export($config['feed']['type']);
+output($rss, function() use($rss, $cache, $cache_key) {
+	$cache->setItem($cache_key, $rss);
+});
 // EOF
