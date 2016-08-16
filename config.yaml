@@ -1,6 +1,8 @@
 log:
     log_file: ./logs
     log_level:
+cache:
+    ttl: 3600
 feed:
     title: HappySF RSS
     description: HappySF의 독자게시판을 RSS로 변환하여 제공하는 서비스입니다. 이 서비스는 HappySF와는 아무런 관련이 없습니다. 이용에 대한 문의사항은 kirrie@gmail.com이나 @_kirrie로 부탁드립니다.

@@ -8,7 +8,8 @@
         "monolog/monolog": "^1.21",
         "symfony/yaml": "^3.1",
         "zendframework/zend-feed": "^2.7",
-        "zendframework/zend-cache": "^2.7"
+        "zendframework/zend-cache": "^2.7",
+        "florianwolters/component-util-singleton": "^0.3.2"
     },
 	"autoload": {
 		"psr-4": {

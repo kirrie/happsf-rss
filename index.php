@@ -34,7 +34,7 @@ $cache_key = 'rss';
 $cache = Cache\StorageFactory::factory(array(
 	'adapter' => array(
 		'name' => 'filesystem',
-		'ttl' => 3600 * 6
+		'cache_dir' => BASE_PATH . '/cache'
 	),
 	'plugins' => array(
 		'exception_handler' => array(
@@ -69,19 +69,17 @@ $feed
 $html = HtmlDomParser::str_get_html($result->getBody());
 foreach($html->find('tr[bgcolor=ffffff]') as $element) {
 	$article = new HappySF\Article($element);
-
-	$entry = $feed->createEntry();
-	$entry
-		->setTitle($article->getTitle())
-		->setLink($article->getURL())
-		->addAuthor(array(
-			'name' => $article->getAuthor()
-		))
-		->setDateCreated($article->getDate())
-		->setDateModified($article->getDate())
-		->setContent($article->getContent());
-
-	$feed->addEntry($entry);
+	$feed->addEntry(
+		$feed->createEntry()
+			->setTitle($article->getTitle())
+			->setLink($article->getURL())
+			->addAuthor(array(
+				'name' => $article->getAuthor()
+			))
+			->setDateCreated($article->getDate())
+			->setDateModified($article->getDate())
+			->setContent($article->getContent())
+	);
 }
 
 $rss = $feed->export($config['feed']['type']);
