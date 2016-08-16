@@ -34,6 +34,7 @@ $cache_key = 'rss';
 $cache = Cache\StorageFactory::factory(array(
 	'adapter' => array(
 		'name' => 'filesystem',
+		'ttl' => $config['cache']['ttl'],
 		'cache_dir' => BASE_PATH . '/cache'
 	),
 	'plugins' => array(
