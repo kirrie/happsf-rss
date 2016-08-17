@@ -11,9 +11,6 @@ class Output {
 	public function __construct() {
 		$this->response = new Psr7\Response;
 		$this->response = $this->response->withBody(new Psr7\Stream(fopen('php://memory', 'r+')));
-		$this
-			->setStatusCode(200)
-			->setCacheMiss();
 	}
 
 	public function setStatusCode($statusCode) {
@@ -42,6 +39,12 @@ class Output {
 
 	public function setCacheMiss($from = 'local') {
 		$this->response = $this->response->withHeader('X-Cache', 'Miss from ' . $from);
+
+		return $this;
+	}
+
+	public function unsetCacheHeader() {
+		$this->response = $this->response->withoutHeader('X-Cache');
 
 		return $this;
 	}

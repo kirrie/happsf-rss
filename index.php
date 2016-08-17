@@ -65,6 +65,8 @@ try {
 	});
 } catch(GuzzleHttp\Exception\ClientException $e) {
 	$output
+		->unsetCacheHeader()
+		->setContentType('text/html; charset=utf-8')
 		->setStatusCode($e->getResponse()->getStatusCode())
 		->write($e->getMessage());
 }
