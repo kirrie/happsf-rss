@@ -22,5 +22,10 @@
             "name": "kirrie",
             "email": "kirrie@gmail.com"
         }
-    ]
+    ],
+	"scripts": {
+		"post-package-install": [
+			"HappySF\\Install::postPackageInstall"
+		]
+	}
 }
