@@ -26,10 +26,6 @@ class Article {
 		$client = new GuzzleHttp\Client();
 		$result = $client->request('GET', $this->getURL());
 
-		if($result->getStatusCode() !== 200) {
-			// TODO logging
-		}
-
 		$html = HtmlDomParser::str_get_html($result->getBody());
 		$this->setAuthor($html->find('span[style=cursor:hand]', 0)->innertext);
 		$this->setContent($html->find('td[valign=top]', 1)->innertext);
@@ -42,6 +38,8 @@ class Article {
 	}
 
 	private function convertCharacterEncodingToUTF8($text) {
+		$text = !is_string($text) ? '' : $text;
+				
 		return (empty($text) ? $text : iconv('EUC-KR', 'UTF-8//IGNORE', $text));
 	}
 
