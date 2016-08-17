@@ -39,8 +39,12 @@ class Article {
 
 	private function convertCharacterEncodingToUTF8($text) {
 		$text = !is_string($text) ? '' : $text;
-				
-		return (empty($text) ? $text : iconv('EUC-KR', 'UTF-8//IGNORE', $text));
+
+		if(function_exists('mb_convert_encoding')) {
+			return mb_convert_encoding($text, 'UTF-8', 'EUC-KR');
+		} else {
+			return (empty($text) ? $text : iconv('EUC-KR', 'UTF-8//IGNORE', $text));
+		}
 	}
 
 	public function setTitle($title) {

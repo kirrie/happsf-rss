@@ -69,6 +69,12 @@ try {
 		->setContentType('text/html; charset=utf-8')
 		->setStatusCode($e->getResponse()->getStatusCode())
 		->write($e->getMessage());
+} catch(Exception $e) {
+	$output
+		->unsetCacheHeader()
+		->setContentType('text/html; charset=utf-8')
+		->setStatusCode(500)
+		->write('Message: ' . $e->getMessage() . '<br />Stacks:<br />' . str_replace("\n", '<br />', $e->getTraceAsString()));
 }
 
 // flush
