@@ -7,7 +7,7 @@
 - [composer](https://getcomposer.org) 가 설치되어 있어야 합니다.
 
 # 설치
-	> git clone https://github.com/kirrie/happsf-rss.git happysf-rss
+	> git clone https://github.com/kirrie/happysf-rss.git happysf-rss
 	> cd happysf-rss
 	> composer install
 
