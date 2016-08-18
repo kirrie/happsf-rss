@@ -40,10 +40,12 @@ try {
 		$feed
 			->setTitle($config['feed']['title'])
 			->setLink($config['feed']['homepage_url'])
-			->setDescription($config['feed']['description'])
 			->setFeedLink($config['feed']['feed_url'], $config['feed']['type'])
-			->setDateModified(time())
-			->addAuthor($config['feed']['author']);
+			->addAuthor($config['feed']['author']) // array type
+			->setDescription($config['feed']['description']);
+
+		// lastModified
+		$lastModified = NULL;
 
 		$html = HtmlDomParser::str_get_html($result->getBody());
 		foreach($html->find('tr[bgcolor=ffffff]') as $element) {
@@ -55,11 +57,19 @@ try {
 					->addAuthor(array(
 						'name' => $article->getAuthor()
 					))
-					->setDateCreated($article->getDate())
 					->setDateModified($article->getDate())
+					->setDateCreated($article->getDate())
+					->setDescription($article->getContent())
 					->setContent($article->getContent())
 			);
+
+			// a most recent article's pubdate is last modified date of this feed.
+			if(is_null($lastModified)) {
+				$lastModified = $article->getDate();
+			}
 		}
+
+		$feed->setDateModified($lastModified);
 
 		return $feed->export($config['feed']['type']);
 	});
